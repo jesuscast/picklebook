@@ -1,1 +1,0 @@
-console.error("Error: Cannot find module '/Users/unifyid/hacks/picklebook/extension/src/js/content_script/content.js' from '/Users/unifyid/hacks/picklebook/extension'");
