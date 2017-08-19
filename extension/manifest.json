@@ -1,0 +1,53 @@
+{
+    "manifest_version": 2,
+    "name": "Picklebook",
+    "version": "1.0.5",
+    "version_name": "1.0-beta5",
+    "description": "Picklebook",
+    // "icons": {
+    //     "16": "/dist/images/icons/lock16.png",
+    //     "48": "/dist/images/icons/lock48.png",
+    //     "128": "/dist/images/icons/lock128.png"
+    // },
+
+    "browser_action": {
+        //"default_icon": "/dist/images/unifyid.png",
+        "default_popup": "/dist/assets/index.html",
+        "default_title": "__MSG_defaultTitle__"
+    },
+
+    "background": {
+        "scripts": [
+            "/dist/libs/jquery.min.js",
+            "/dist/background.js"
+        ],
+        "persistent": false
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ],
+            "js": [
+                "/dist/libs/jquery.min.js",
+                "/dist/content.js"
+            ],
+            "run_at": "document_end",
+            "all_frames": true
+        }
+    ],
+    "web_accessible_resources": [
+      "/dist/*"
+    ],
+    "permissions": [
+        "privacy",
+        "geolocation",
+        "activeTab",
+        "storage",
+        "tabs",
+        "http://*/*",
+        "https://*/*",
+        "chrome-extension://*"
+    ]
+}

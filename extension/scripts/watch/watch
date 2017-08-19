@@ -218,17 +218,8 @@ if (program.less) {
 * Listen for changes in static files.
 */
 let staticPaths = [
-  './src/js/modals/app/components/dashboard/partials',
-  './src/js/modals/app/components/dashboard/templates',
-  './src/js/modals/app/components/registration/partials',
-  './src/js/modals/app/components/registration/templates',
-  './src/js/modals/app/components/overlay',
-  './src/js/modals/challenge-ui',
-  './src/js/modals/app/shared/templates',
-  './src/js/action_script/html'
+  './src/static/'
 ];
-
-staticPaths = [];
 
 const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
 
@@ -253,7 +244,7 @@ let fileSystemWatcher = chokidar.watch('/src/js/modals/challenge-ui', {
 /**
 * Copy libs and images.
 */
-const dirsToCopy = [];
+const dirsToCopy = ['libs'];
 // ['images', 'libs'];
 
 let rsync_procs = dirsToCopy.map((dir) => {
