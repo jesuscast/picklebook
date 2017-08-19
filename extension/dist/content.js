@@ -23,10 +23,10 @@ var consistencyLooper = function consistencyLooper() {
       var ref = $(this).attr("data-ploi") || $(this).attr("src");
       saveButton.click(function() {
         $.ajax({
-        type: "POST",
-        url: "https://ffeca37c.ngrok.io/add_link",
-        contentType: 'application/json',
-        data: JSON.stringify({"user_id" : "lol", "link" : ref}),
+          type: "POST",
+          url: "https://ffeca37c.ngrok.io/add_link",
+          contentType: 'application/json',
+          data: JSON.stringify({"user_id" : "lol", "link" : ref}),
         });
       });
 

@@ -1,6 +1,6 @@
 body {
-  height: 150px;
-  width: 150px;
+  height: 450px;
+  width: 450px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,4 +33,15 @@ body {
 .activated:hover {
   border: 3px solid #733c3c;
   background-color: #a24325;
+}
+
+.photos {
+  background-color: #228033;
+  color: white;
+  font-size: 2em;
+  transition: all .3s;
+}
+.photos:hover {
+  border: 3px solid #1d3e1b;
+  background-color: #21652d;
 }

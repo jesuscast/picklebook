@@ -35,7 +35,6 @@ var photosDatabase = firebaseRoot.child("photos");
 
 const temp_filename = "temp.jpg";
 
-
 app.post("/add_link", function(req, res) {
   var user_id = req.body.user_id;
   var link = req.body.link;
@@ -57,8 +56,23 @@ app.get("/links/:user_id", function(req, res) {
     res.send("bad user_id");
   }
   getLinks(user_id, function(links) {
-    res.send(links);
+    res.send({links: links});
   });
+});
+
+app.get("/photo/:user_id/:link", function(req, res) {
+  var user_id = req.params.user_id;
+  var link = req.params.link;
+  if (!user_id || !link) {
+    return res.send(null);
+  }
+  var key_arr = link.split("/");
+  if (key_arr.length > 0) {
+    var key = key_arr[key_arr.length-1];
+    var params = {Bucket: 'picklebook.images', Key: user_id + "/" + key};
+    return s3.getObject(params).createReadStream().pipe(res);
+  }
+  return res.send(null);
 });
 
 //imageToS3("tester", "http://facebook/asdf.jpg");
@@ -92,14 +106,16 @@ function upload(user_id, filename, callback) {
       console.log("upload location: " + data.Location);
       callback(data.Location);
     }
+    else {
+      callback(null);
+    }
   });
 }
 
 function download(url, filename, callback) {
   request.head(url, function(err, res, body) {
     if (!res || !res.headers) {
-      callback("Error -- not valid link: " + url);
-      return;
+      return callback("Error -- not valid link: " + url);
     }
     var content_type = res.headers["content-type"];
     console.log("content-type:", content_type);
@@ -121,8 +137,7 @@ function getLinks(user_id, callback) {
   photosDatabase.child(user_id).once("value", function(snapshot) {
     val = snapshot.val();
     var links = Object.keys(val);
-    //console.log(links);
-    console.log(callback);
+    console.log(links);
     if (callback) {
       var decoded_links = links.map(decode);
       callback(decoded_links);
