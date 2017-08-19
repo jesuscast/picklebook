@@ -32,7 +32,7 @@ let activated = false;
 
 router.route('activate', () => {
 	activated = true;
-  console.log($("a:contains('Like')"));
+  console.log($(".share_action_link"));
 	console.log('Activating');
 })
 .route('deactivate', () => {
