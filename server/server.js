@@ -4,7 +4,23 @@ var app = express();
 var bodyParser = require('body-parser');
 app.use(bodyParser.json());
 
-var http = require("http");
+var fs = require("fs");
+var request = require("request");
+
+var aws = require("aws-sdk");
+aws.config.loadFromPath('../../Desktop/credentials.json');
+var s3 = new aws.S3();
+
+// Call S3 to list current buckets
+/*
+s3.listBuckets(function(err, data) {
+   if (err) {
+      console.log("Error", err);
+   } else {
+      console.log("Bucket List", data.Buckets);
+   }
+});
+*/
 
 var admin = require("firebase-admin");
 var serviceAccount = require("./dontlookhere/porn.json");
@@ -17,36 +33,101 @@ var firebase = admin.initializeApp({
 var firebaseRoot = firebase.database().ref();
 var photosDatabase = firebaseRoot.child("photos");
 
+const temp_filename = "temp.jpg";
 
 
-app.post("/add_link/", function(req, res) {
+app.post("/add_link", function(req, res) {
   var user_id = req.body.user_id;
   var link = req.body.link;
   console.log("adding link: " + link);
-  addLink(user_id, link);
-  res.send("success");
+  imageToS3(user_id, link, function(err) {
+    if (!err) {
+      res.send({success: true});
+    }
+    else {
+      res.send({success: false});
+    }
+  });
 });
 
+app.get("/links/:user_id", function(req, res) {
+  var user_id = req.params.user_id;
+  if (!user_id) {
+    res.send("bad user_id");
+  }
+  getLinks(user_id, function(links) {
+    res.send(links);
+  });
+});
 
-addLink("test_id", "google.com");
+//imageToS3("tester", "http://facebook/asdf.jpg");
+//imageToS3("tester", "https://scontent.fsnc1-3.fna.fbcdn.net/v/t1.0-9/20882096_10209673832787069_6187247544155216128_n.jpg?oh=fd6155bfe35a2b6b8ec3c1705f847214&oe=5A2BF846");
 
+//getLinks("tester");
 
-
-var options = {
-  host: "amazon.com",
-  path: "/index.html"
+// downloads image at url to temp.jpg and then uploads temp.jpg to picklebook.images/user_id
+// adds image link to user's link database on firebase
+function imageToS3(user_id, url, callback) {
+  download(url, temp_filename, function(err) {
+    if (!err) {
+      upload(user_id, temp_filename, function(file_location) {
+        addLink(user_id, file_location);
+        callback(null);
+      });
+    }
+    else {
+      console.log(err);
+      callback(err);
+    }
+  });
 }
 
-http.get(options, function(res) {
-  console.log(res);
-});
+function upload(user_id, filename, callback) {
+  var uploadStream = fs.createReadStream(filename);
+  var s3path = user_id + "/" + "hotgirl-" + Date.now();
+  var params = {Bucket: "picklebook.images", Key: s3path, Body: uploadStream};
+  s3.upload(params, function(err, data) {
+    if (data) {
+      console.log("upload location: " + data.Location);
+      callback(data.Location);
+    }
+  });
+}
 
+function download(url, filename, callback) {
+  request.head(url, function(err, res, body) {
+    if (!res || !res.headers) {
+      callback("Error -- not valid link: " + url);
+      return;
+    }
+    var content_type = res.headers["content-type"];
+    console.log("content-type:", content_type);
+    if (content_type == "image/jpeg") {
+      request(url).pipe(fs.createWriteStream(filename)).on("close", callback);
+    }
+    else {
+      callback("Error -- not valid jpg: " + url);
+    }
+  });
+}
 
 
 function addLink(user_id, link) {
   photosDatabase.child(user_id).child(encode(link)).set(true);
 }
 
+function getLinks(user_id, callback) {
+  photosDatabase.child(user_id).once("value", function(snapshot) {
+    val = snapshot.val();
+    var links = Object.keys(val);
+    //console.log(links);
+    console.log(callback);
+    if (callback) {
+      var decoded_links = links.map(decode);
+      callback(decoded_links);
+    }
+  });
+}
 
 
 /* helpers */
