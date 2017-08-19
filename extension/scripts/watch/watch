@@ -138,38 +138,20 @@ const spawnJsChildren = () => {
   [
     {
       type: "js",
-      entryPoint: "./src/js/modals/app/app.module.js",
-      outputFile: "app.js",
-      name: "App",
-    },
-    {
-      type: "js",
-      entryPoint: "./src/js/content_script/content.js",
-      outputFile: "content-bundle.js",
+      entryPoint: "./src/js/content.js",
+      outputFile: "content.js",
       name: "Content",
     },
     {
       type: "js",
-      entryPoint: "./src/js/background_script/background.js",
-      outputFile: "event_page.js",
+      entryPoint: "./src/js/background.js",
+      outputFile: "background.js",
       name: "EventPage",
     },
     {
       type: "js",
-      entryPoint: "./src/js/modals/save_password.js",
-      outputFile: "password_modal.js",
-      name: "Password Modal",
-    },
-    {
-      type: "js",
-      entryPoint: "./src/js/modals/challenge.js",
-      outputFile: "challenge.js",
-      name: "Challenge Modal",
-    },
-    {
-      type: "js",
-      entryPoint: "./src/js/action_script/browser_action.js",
-      outputFile: "browser_action.js",
+      entryPoint: "./src/js/action.js",
+      outputFile: "action.js",
       name: "Action Page",
     }
   ].forEach((args, index) => {
@@ -246,6 +228,8 @@ let staticPaths = [
   './src/js/action_script/html'
 ];
 
+staticPaths = [];
+
 const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
 
 let allStaticFiles = staticPaths.map((path) => {
@@ -269,7 +253,8 @@ let fileSystemWatcher = chokidar.watch('/src/js/modals/challenge-ui', {
 /**
 * Copy libs and images.
 */
-const dirsToCopy = ['images', 'libs'];
+const dirsToCopy = [];
+// ['images', 'libs'];
 
 let rsync_procs = dirsToCopy.map((dir) => {
   return new Rsync()
