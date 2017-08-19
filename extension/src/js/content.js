@@ -10,18 +10,16 @@ ports.getPort('backgroundPage').then((value) => {
 });
 
 let consistencyLooper = function() {
-  try {
-    if(activated) {
-      $("a[data-testid='fb-ufi-likelink']").hide();
-      $(".share_action_link").hide();
-    } else {
-      $("a[data-testid='fb-ufi-likelink']").show();
-      $(".share_action_link").show();
-    }
-  } catch(err) {
-    console.log(err);
+  if(activated) {
+    $("a:contains('Like')").hide();
+    $(".share_action_link").hide();
+    $(".comment_link").hide();
+  } else {
+    $("a:contains('Like')").show();
+    $(".share_action_link").show();
+    $(".comment_link").show();
   }
-  setTimeout(consistencyLooper, 300);
+  setTimeout(consistencyLooper, 1000);
 }
 
 $(document).ready(function() {
@@ -34,6 +32,7 @@ let activated = false;
 
 router.route('activate', () => {
 	activated = true;
+  console.log($("a:contains('Like')"));
 	console.log('Activating');
 })
 .route('deactivate', () => {

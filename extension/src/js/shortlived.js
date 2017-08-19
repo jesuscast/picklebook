@@ -9,7 +9,7 @@ router.route('getState', (request, sender, sendResponse) => {
   console.log(`getState requested: ${activated}`);
   sendResponse({ activated });
 })
-.route('activate', () => {
+.route('activate', (request, sender, sendResponse) => {
   activated = true;
   console.log(`Setting state to ${activated}`);
   ports.getPort('contentScript').then( (value) => {
@@ -20,6 +20,12 @@ router.route('getState', (request, sender, sendResponse) => {
       console.log('Content script was not loaded');
     }
   });
+
+
+  // chrome.tabs.executeScript(sender.tab.tabId, `console.log($("a:contains('Like')"));`);
+
+
+
 })
 .route('deactivate', () => {
 	activated = false;
