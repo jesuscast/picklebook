@@ -1,3 +1,39 @@
+body {
+	height: 150px;
+    width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.activated,
+.deactivated {
+    height: 100px;
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 100px;
+    cursor: pointer;
+}
+
+.deactivated {
+	background-color: #228033;
+    color: white;
+    font-size: 2em;
+    transition: all .3s;
+    &:hover {
+	    border: 3px solid #1d3e1b;
+        background-color: #21652d;
+    }
+}
+
 .activated {
-	background-color: green;
+	background-color: #bd4823;
+    color: white;
+    font-size: 2em;
+    &:hover {
+    	border: 3px solid #733c3c;
+	    background-color: #a24325;
+    }
 }

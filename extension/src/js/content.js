@@ -9,6 +9,24 @@ ports.getPort('backgroundPage').then((value) => {
   }
 });
 
+let consistencyLooper = function() {
+  try {
+    if(activated) {
+      $("a[data-testid='fb-ufi-likelink']").hide();
+      $(".share_action_link").hide();
+    } else {
+      $("a[data-testid='fb-ufi-likelink']").show();
+      $(".share_action_link").show();
+    }
+  } catch(err) {
+    console.log(err);
+  }
+  setTimeout(consistencyLooper, 300);
+}
+
+$(document).ready(function() {
+  consistencyLooper();
+});
 
 const router = new Router();
 
@@ -17,14 +35,10 @@ let activated = false;
 router.route('activate', () => {
 	activated = true;
 	console.log('Activating');
-	$("a[data-testid='fb-ufi-likelink']").hide();
-	$(".share_action_link").hide();
 })
 .route('deactivate', () => {
 	activated = false;
 	console.log('Deactivaing');
-	$("a[data-testid='fb-ufi-likelink']").show();
-	$(".share_action_link").show();
 });
 
 /**
