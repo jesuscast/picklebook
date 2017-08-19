@@ -1,0 +1,331 @@
+#!/usr/bin/env node
+'use strict'
+
+// Requires.
+const program = require('commander');
+const childProcess = require('child_process');
+const spawn = childProcess.spawn;
+const colors = require('colors');
+const notifier = require('node-notifier');
+const chokidar = require('chokidar')
+const path = require('path');
+const rp = require('request-promise');
+const _ = require('lodash');
+const fs = require('fs');
+var Rsync = require('rsync');
+
+// Set up our options.
+program
+  .version(require('./package.json').version)
+  .option('-l, --less', 'Watch Less files for modification.')
+  .option('-j, --javascript', 'Watch JavaScript files for modification.')
+  .option('-u, --uglify', 'Use UglifyJS to obfuscate files during watch.')
+  .option('-d, --development', 'Run in development mode')
+  .on('--help', function(){
+    console.log('  Notes:')
+    console.log()
+    console.log('    If no options are passed it is assumed that you want to watch all files.')
+    console.log()
+  })
+  .parse(process.argv);
+
+process.title = 'watcher'
+
+// Let's assume we want to watch everything if no options were passed.
+if (!program.less && !program.javascript) {
+  program.javascript = true;
+  program.less = true;
+}
+
+let workerColors = 
+`green
+blue
+magenta
+cyan
+white`.split("\n");
+
+let jsChildren = [];
+let lessChildren = [];
+
+const uglify = function(filename) {
+  // Check the filename
+  const parts = filename.split(".");
+  const name = parts[0];
+  const extension = parts[parts.length - 1];
+  if (extension !== 'js' || !program.uglify) {
+    console.log("Warning: Not uglifying output files");
+    return './dist/' + filename;
+  }
+  const pipeline = 'uglifyjs > ./dist/' + name + '.js';
+  return pipeline;
+}
+
+const getTime = () => {
+  const date = new Date();
+  const hour = ('0' + date.getHours()).slice(-2);
+  const minute = ('0' + date.getMinutes()).slice(-2);
+  const second = ('0' + date.getSeconds()).slice(-2);
+
+  return '[' + hour + ':' + minute + ':' + second + '] ';
+}
+
+if(!fs.existsSync('./dist/assets')) {
+  fs.mkdirSync('./dist/assets');
+}
+
+
+function createProcess(args, index) {
+  const color = workerColors[ index % workerColors.length ];
+  let options = [];
+  let cmd = "";
+  let processChild = null;
+  if (args.type == "js") {
+    cmd = "./node_modules/.bin/watchify";
+    options = [ // Input file.
+      args.entryPoint,
+      // Envify our output file.
+      "-t",
+      "envify",
+      // Outout flag.
+      "-o",
+      // Output file.
+      uglify(args.outputFile),
+      // Verbose output with delay (100 ms default).
+      "-vd",
+      "--full-paths" ];
+  } else if (args.type == "less") {
+    cmd = "./node_modules/.bin/autoless";
+    options = [ // Less directory.
+      args.entryPoint,
+      // Output directory.
+      "./dist" ];
+  } else {
+    process.exit();
+  }
+  // Spawn a Watchify child process to monitor our app.js.
+  processChild = spawn(cmd, options);
+  processChild.stdout.on("data", (data) => {
+    process.stdout.write( getTime().yellow+ ('['+args.name+'] ')[color]+ data );
+  });
+  processChild.stderr.on("data", (data) => {
+    const re = /^\d+ bytes/;
+    const match = re.test(data);
+    if (match) {
+      process.stderr.write(getTime().yellow+ ('['+args.name+'] ')[color]+ data );
+      notifier.notify({
+        "title": "App Watcher",
+        "message": data,
+        "time": 500,
+        "icon": path.join(__dirname, "/lock128.png"),
+        "wait": false
+      });
+    } else {
+      process.stderr.write(getTime().yellow + ('['+args.name+'] ')[color] + "[ERROR] ".red+ data);
+    }
+  });
+  processChild.on("exit", (code) => {
+    if (code!=0) {
+      console.error("\u2717 Watching JavaScript failed!".red.bold);
+    } else {
+      console.log(getTime().yellow+ ('['+args.name+'] ')[color]+ `Child process exited with code ${code}.`);
+    }
+    process.exit(code);
+  });
+  return processChild;
+};
+
+const spawnJsChildren = () => {
+  [
+    {
+      type: "js",
+      entryPoint: "./src/js/modals/app/app.module.js",
+      outputFile: "app.js",
+      name: "App",
+    },
+    {
+      type: "js",
+      entryPoint: "./src/js/content_script/content.js",
+      outputFile: "content-bundle.js",
+      name: "Content",
+    },
+    {
+      type: "js",
+      entryPoint: "./src/js/background_script/background.js",
+      outputFile: "event_page.js",
+      name: "EventPage",
+    },
+    {
+      type: "js",
+      entryPoint: "./src/js/modals/save_password.js",
+      outputFile: "password_modal.js",
+      name: "Password Modal",
+    },
+    {
+      type: "js",
+      entryPoint: "./src/js/modals/challenge.js",
+      outputFile: "challenge.js",
+      name: "Challenge Modal",
+    },
+    {
+      type: "js",
+      entryPoint: "./src/js/action_script/browser_action.js",
+      outputFile: "browser_action.js",
+      name: "Action Page",
+    }
+  ].forEach((args, index) => {
+     jsChildren.push(createProcess(args, index));
+  });
+}
+
+
+/**
+ * Watchers for JavaScript files.
+ */
+if (program.javascript) {
+
+  if (program.development) {
+    process.env['NODE_ENV'] = 'development';
+    if (!process.env['BACKEND_URL']) {
+      rp({uri: 'http://localhost:4040/api/tunnels', json: true})
+        .then(function(json) {
+          // Find the https tunnel.
+          const tunnel = _.find(json.tunnels, {'proto': 'https'});
+          const uri = tunnel['public_url'];
+          const hostname = uri.replace(/http:\/\/|https:\/\//, '');
+          if (hostname) {
+            process.env['BACKEND_URL'] = "https://" + hostname;
+          } else {
+            console.log(getTime().yellow + "! ENV variable BACKEND_URL not specified, using the default.".yellow.bold);
+            process.env['BACKEND_URL'] = "https://backend-dev.unify.id";
+          }
+          spawnJsChildren()
+        })
+        .catch(function(err) {
+          console.log(getTime().yellow + "! ENV variable BACKEND_URL not specified, using the default.".yellow.bold);
+          process.env['BACKEND_URL'] = "https://backend-dev.unify.id";
+          spawnJsChildren()
+        });
+    } else {
+      spawnJsChildren()
+    }
+  } else {
+    process.env['NODE_ENV'] = 'production';
+    if (!process.env['BACKEND_URL']) {
+      process.env['BACKEND_URL'] = "https://backend.unify.id";
+    }
+    spawnJsChildren()
+  }
+}
+
+/**
+ * Watcher for Less files.
+ */
+if (program.less) {
+  [  {
+      type: "less",
+      entryPoint: "./src/less",
+      name: "Less"
+    }
+  ].forEach((args, index) => {
+    lessChildren.push(createProcess(args, index));
+  });
+}
+
+
+/**
+* Listen for changes in static files.
+*/
+let staticPaths = [
+  './src/js/modals/app/components/dashboard/partials',
+  './src/js/modals/app/components/dashboard/templates',
+  './src/js/modals/app/components/registration/partials',
+  './src/js/modals/app/components/registration/templates',
+  './src/js/modals/app/components/overlay',
+  './src/js/modals/challenge-ui',
+  './src/js/modals/app/shared/templates',
+  './src/js/action_script/html'
+];
+
+const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
+
+let allStaticFiles = staticPaths.map((path) => {
+  return fs.readdirSync(path).map((fileValue) => {
+    return path+'/'+fileValue;
+  });
+});
+
+allStaticFiles = flatten(allStaticFiles);
+
+function processStaticFileChange(path) {
+  console.log('File', path, 'has been changed');
+  let components = path.split('/');
+  let fileName = components[components.length - 1];
+  fs.createReadStream(path).pipe(fs.createWriteStream(`dist/assets/${ fileName }`));
+}
+let fileSystemWatcher = chokidar.watch('/src/js/modals/challenge-ui', {
+  ignored: /[\/\\]\./, persistent: true
+}).add(allStaticFiles).on('change', processStaticFileChange).on('add', processStaticFileChange);
+
+/**
+* Copy libs and images.
+*/
+const dirsToCopy = ['images', 'libs'];
+
+let rsync_procs = dirsToCopy.map((dir) => {
+  return new Rsync()
+    .shell('ssh')
+    .flags('r')
+    .source(`./src/${ dir }`)
+    .destination(`./dist`);
+});
+
+rsync_procs.forEach((proc) => {
+  proc.execute(function(err, code, cmd) {
+    if(err) {
+      console.log(err);
+      return;
+    }
+    console.log('Code :'+code);
+    console.log(cmd);
+  });
+});
+
+/**
+ * Close any children if we're crashing.
+ */
+function exitHandler(options, err) {
+
+    if (options.cleanup) {
+      console.log('\n' + getTime().yellow + '! Cleaning up any remaining watchers.'.yellow.bold);
+
+      jsChildren.forEach((proc) => {
+        proc.kill();
+      });
+      lessChildren.forEach((proc) => {
+        proc.kill();
+      });
+
+      console.log(getTime().yellow + '\u2713 Watchers removed.'.green.bold);
+    }
+    if (err) {
+      process.exit(1);
+    }
+    if (options.exit) {
+      process.exit();
+    }
+}
+
+// Do something when app is closing
+process.on('exit', exitHandler.bind(null,{cleanup:true}));
+
+// Catches ctrl+c event.
+process.on('SIGINT', exitHandler.bind(null, {exit:true}));
+
+// Catch keyboard quit event.
+process.on('SIGQUIT', exitHandler.bind(null, {exit:true}));
+
+// Catches kill event.
+process.on('SIGTERM', exitHandler.bind(null, {exit:true}));
+
+// Catches uncaught exceptions
+process.on('uncaughtException', exitHandler.bind(null, {exit:true}));
