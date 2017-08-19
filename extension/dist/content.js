@@ -17,6 +17,23 @@ var consistencyLooper = function consistencyLooper() {
     $("a:contains('Like')").hide();
     $(".share_action_link").hide();
     $(".comment_link").hide();
+    $(".stageWrapper").css("line-height", "0px");
+    $("a[data-ploi], img.spotlight").each(function() {
+      var saveButton = $('<a style="font-size: 20px; line-height: 50px; z-index: 9999">Save that shit!!!</a>');
+      var ref = $(this).attr("data-ploi") || $(this).attr("src");
+      saveButton.click(function() {
+        $.ajax({
+        type: "POST",
+        url: "https://ffeca37c.ngrok.io/add_link",
+        contentType: 'application/json',
+        data: JSON.stringify({"user_id" : "lol", "link" : ref}),
+        });
+      });
+
+      if (!$(this).next().is("a")) {
+        $(this).after(saveButton);
+      }
+    });
   } else {
     $("a:contains('Like')").show();
     $(".share_action_link").show();

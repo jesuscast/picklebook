@@ -39,6 +39,7 @@ const temp_filename = "temp.jpg";
 app.post("/add_link", function(req, res) {
   var user_id = req.body.user_id;
   var link = req.body.link;
+  console.log("user: " + user_id);
   console.log("adding link: " + link);
   imageToS3(user_id, link, function(err) {
     if (!err) {
@@ -84,7 +85,7 @@ function imageToS3(user_id, url, callback) {
 
 function upload(user_id, filename, callback) {
   var uploadStream = fs.createReadStream(filename);
-  var s3path = user_id + "/" + "hotgirl-" + Date.now();
+  var s3path = user_id + "/" + "hotgirl-" + Date.now() + ".jpg";
   var params = {Bucket: "picklebook.images", Key: s3path, Body: uploadStream};
   s3.upload(params, function(err, data) {
     if (data) {
@@ -102,7 +103,7 @@ function download(url, filename, callback) {
     }
     var content_type = res.headers["content-type"];
     console.log("content-type:", content_type);
-    if (content_type == "image/jpeg") {
+    if (content_type == "image/jpeg" || content_type == "image/png") {
       request(url).pipe(fs.createWriteStream(filename)).on("close", callback);
     }
     else {
